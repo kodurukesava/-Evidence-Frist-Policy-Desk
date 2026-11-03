@@ -22,10 +22,13 @@ app = FastAPI(
 )
 
 
-# Configure CORS for React frontend
+# CORS Configuration for React Frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,7 +39,7 @@ app.add_middleware(
 app.include_router(workspace_router)
 
 
-# Home endpoint
+# Home API
 @app.get("/")
 def home():
     return {
@@ -45,7 +48,7 @@ def home():
     }
 
 
-# Health check endpoint
+# Health Check API
 @app.get("/health")
 def health():
     return {
@@ -53,7 +56,7 @@ def health():
     }
 
 
-# Database status endpoint
+# Database Status API
 @app.get("/database-status")
 def database_status():
     return {
