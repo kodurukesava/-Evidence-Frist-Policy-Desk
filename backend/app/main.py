@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine
 from . import models
+from .routes.workspace import router as workspace_router
 
 
 # Create database tables during development
@@ -29,6 +30,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Register workspace routes
+app.include_router(workspace_router)
 
 
 # Home endpoint
