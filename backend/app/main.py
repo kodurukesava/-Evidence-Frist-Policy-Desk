@@ -2,6 +2,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .database import Base, engine
+from . import models
+
+
+# Create database tables during development
+Base.metadata.create_all(bind=engine)
+
+
+# Initialize FastAPI application
 app = FastAPI(
     title="Evidence-First Policy Desk",
     description=(
@@ -11,6 +20,8 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
+# Configure CORS for React frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -20,6 +31,7 @@ app.add_middleware(
 )
 
 
+# Home endpoint
 @app.get("/")
 def home():
     return {
@@ -28,8 +40,18 @@ def home():
     }
 
 
+# Health check endpoint
 @app.get("/health")
 def health():
     return {
         "status": "healthy"
+    }
+
+
+# Database status endpoint
+@app.get("/database-status")
+def database_status():
+    return {
+        "database": "connected",
+        "tables": list(Base.metadata.tables.keys())
     }
