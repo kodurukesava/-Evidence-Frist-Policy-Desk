@@ -5,20 +5,30 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database import Base, engine
 from . import models
 from .routes.workspace import router as workspace_router
+from .routes.document import router as document_router
 
 
 # Create database tables during development
 Base.metadata.create_all(bind=engine)
 
 
-# Initialize FastAPI application
 app = FastAPI(
     title="Evidence-First Policy Desk",
     description=(
         "An evidence-grounded multi-document "
         "AI question answering platform"
     ),
-    version="1.0.0"
+    version="1.0.0",
+    openapi_tags=[
+        {
+            "name": "Workspaces",
+            "description": "Create, view, update and delete workspaces."
+        },
+        {
+            "name": "Documents",
+            "description": "Upload and manage workspace documents."
+        }
+    ]
 )
 
 
@@ -35,8 +45,9 @@ app.add_middleware(
 )
 
 
-# Register workspace routes
+# Register application routes
 app.include_router(workspace_router)
+app.include_router(document_router)
 
 
 # Home API

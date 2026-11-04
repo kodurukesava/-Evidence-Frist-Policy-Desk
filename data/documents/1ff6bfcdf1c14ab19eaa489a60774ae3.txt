@@ -1,0 +1,2 @@
+Valid TXT document for testing upload to a workspace ID that does not exist.
+The upload should be rejected with HTTP 404.
