@@ -1,4 +1,8 @@
 
+/* ==============================
+   GLOBAL STYLES
+============================== */
+
 * {
     margin: 0;
     padding: 0;
@@ -10,6 +14,16 @@ body {
     background: #f5f6fa;
     color: #1e293b;
 }
+
+button,
+input,
+textarea {
+    font-family: inherit;
+}
+
+/* ==============================
+   APP LAYOUT
+============================== */
 
 .app-layout {
     display: flex;
@@ -83,6 +97,10 @@ body {
     min-width: 0;
 }
 
+/* ==============================
+   NAVBAR
+============================== */
+
 .navbar {
     height: 85px;
     background: white;
@@ -127,6 +145,10 @@ body {
     font-weight: bold;
 }
 
+/* ==============================
+   PAGE CONTENT
+============================== */
+
 .page-content {
     padding: 30px;
 }
@@ -138,10 +160,136 @@ body {
     border: 1px solid #e2e8f0;
 }
 
-.page-card p {
-    color: #64748b;
-    margin-top: 12px;
+.page-card > h1 {
+    font-size: 30px;
+    margin-bottom: 10px;
 }
+
+.page-card > p {
+    color: #64748b;
+    margin-top: 8px;
+    margin-bottom: 22px;
+    line-height: 1.6;
+}
+
+.page-card h2 {
+    margin: 28px 0 16px;
+    font-size: 23px;
+}
+
+/* ==============================
+   FORMS
+============================== */
+
+.page-card form {
+    max-width: 650px;
+    margin-top: 20px;
+}
+
+.page-card form div {
+    margin-bottom: 18px;
+}
+
+.page-card label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #334155;
+}
+
+.page-card input,
+.page-card textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #fff;
+    color: #1e293b;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.page-card textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.page-card input:focus,
+.page-card textarea:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* ==============================
+   BUTTONS
+============================== */
+
+.page-card button {
+    padding: 10px 17px;
+    border: none;
+    border-radius: 7px;
+    background: #2563eb;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-right: 10px;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.page-card button:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+/* ==============================
+   WORKSPACE CARDS
+============================== */
+
+.page-card > div > div[style] {
+    background: #ffffff;
+    transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.page-card > div > div[style]:hover {
+    border-color: #93c5fd !important;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+.page-card h3 {
+    color: #172554;
+    font-size: 19px;
+}
+
+.page-card small {
+    display: inline-block;
+    margin: 10px 0;
+    color: #64748b;
+}
+
+/* ==============================
+   STATUS MESSAGES
+============================== */
+
+.page-card p[style*="green"] {
+    color: #15803d !important;
+    background: #f0fdf4;
+    padding: 10px 14px;
+    border-radius: 6px;
+}
+
+.page-card p[style*="red"] {
+    color: #b91c1c !important;
+    background: #fef2f2;
+    padding: 10px 14px;
+    border-radius: 6px;
+}
+
+/* ==============================
+   DASHBOARD
+============================== */
 
 .dashboard header {
     margin-bottom: 30px;
@@ -192,6 +340,10 @@ body {
     line-height: 1.6;
 }
 
+/* ==============================
+   RESPONSIVE DESIGN
+============================== */
+
 @media (max-width: 750px) {
     .sidebar {
         width: 190px;
@@ -203,5 +355,31 @@ body {
 
     .page-content {
         padding: 15px;
+    }
+
+    .page-card {
+        padding: 20px;
+    }
+
+    .navbar {
+        padding: 0 15px;
+    }
+}
+
+@media (max-width: 500px) {
+    .app-layout {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+    }
+
+    .brand {
+        margin-bottom: 20px;
+    }
+
+    .page-card {
+        padding: 16px;
     }
 }

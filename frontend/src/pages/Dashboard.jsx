@@ -1,7 +1,29 @@
 
+import { useEffect, useState } from "react";
 import ApiStatus from "../components/common/ApiStatus";
+import api from "../services/api";
 
 function Dashboard() {
+    const [workspaces, setWorkspaces] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        const fetchWorkspaces = async () => {
+            try {
+                const response = await api.get("/workspaces/");
+                setWorkspaces(response.data);
+            } catch (err) {
+                console.error("Workspace loading error:", err);
+                setError("Unable to load workspaces.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchWorkspaces();
+    }, []);
+
     return (
         <div className="dashboard">
             <header>
@@ -27,7 +49,7 @@ function Dashboard() {
 
                 <div className="stat-card">
                     <h3>Workspaces</h3>
-                    <h2>0</h2>
+                    <h2>{loading ? "..." : workspaces.length}</h2>
                     <p>Active workspaces</p>
                 </div>
             </section>
@@ -41,6 +63,34 @@ function Dashboard() {
                     and receive answers supported by
                     verified document passages.
                 </p>
+            </section>
+
+            <section className="recent-workspaces">
+                <h2>Recent Workspaces</h2>
+
+                {loading ? (
+                    <p>Loading workspaces...</p>
+                ) : error ? (
+                    <p>{error}</p>
+                ) : workspaces.length === 0 ? (
+                    <p>No workspaces found.</p>
+                ) : (
+                    workspaces.map((workspace) => (
+                        <div
+                            className="stat-card"
+                            key={workspace.id}
+                        >
+                            <h3>{workspace.name}</h3>
+                            <p>
+                                {workspace.description ||
+                                    "No description provided."}
+                            </p>
+                            <small>
+                                Workspace ID: {workspace.id}
+                            </small>
+                        </div>
+                    ))
+                )}
             </section>
         </div>
     );
