@@ -1,7 +1,12 @@
 
 from sqlalchemy import (
-    Column, Integer, String, DateTime,
-    Boolean, ForeignKey, UniqueConstraint
+    Column,
+    Integer,
+    String,
+    DateTime,
+    Boolean,
+    ForeignKey,
+    UniqueConstraint,
 )
 from sqlalchemy.sql import func
 
@@ -15,31 +20,54 @@ class DocumentVersion(Base):
         UniqueConstraint(
             "document_id",
             "version_number",
-            name="uq_document_version"
+            name="uq_document_version",
         ),
     )
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
 
     document_id = Column(
         Integer,
         ForeignKey("documents.id"),
-        nullable=False
+        nullable=False,
     )
 
-    version_number = Column(Integer, nullable=False)
+    version_number = Column(
+        Integer,
+        nullable=False,
+    )
 
-    checksum = Column(String(64), nullable=True)
+    checksum = Column(
+        String(64),
+        nullable=True,
+    )
 
-    storage_path = Column(String(500), nullable=False)
+    storage_path = Column(
+        String(500),
+        nullable=False,
+    )
 
-    effective_from = Column(DateTime(timezone=True), nullable=True)
+    effective_from = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
-    effective_to = Column(DateTime(timezone=True), nullable=True)
+    effective_to = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
-    is_current = Column(Boolean, default=True, nullable=False)
+    is_current = Column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
 
     created_at = Column(
         DateTime(timezone=True),
-        server_default=func.now()
+        server_default=func.now(),
     )
