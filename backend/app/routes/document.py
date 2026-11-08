@@ -15,6 +15,7 @@ from ..database import get_db
 from ..models.document import Document
 from ..models.workspace import Workspace
 from ..schemas.document import DocumentResponse
+from ..services.document_extractor import extract_text
 
 
 # Create Documents API router
@@ -109,7 +110,13 @@ async def upload_document(
 
                 buffer.write(chunk)
 
-        # Step 7: Save document metadata in SQLite
+        # Step 7: Extract document text
+        extracted_text = extract_text(
+            str(destination),
+            extension
+        )
+
+        # Step 8: Save document metadata and extracted text
         document = Document(
             workspace_id=workspace_id,
             uploaded_by_id=1,  # Temporary until authentication
@@ -117,7 +124,8 @@ async def upload_document(
             stored_filename=stored_filename,
             file_type=extension.lstrip("."),
             file_size=file_size,
-            status="uploaded"
+            status="processed",
+            extracted_text=extracted_text
         )
 
         db.add(document)
@@ -131,6 +139,16 @@ async def upload_document(
         db.rollback()
         destination.unlink(missing_ok=True)
         raise
+
+    except ValueError as error:
+
+        db.rollback()
+        destination.unlink(missing_ok=True)
+
+        raise HTTPException(
+            status_code=422,
+            detail=str(error)
+        )
 
     except Exception as error:
 
