@@ -7,7 +7,7 @@ from fastapi import (
     Depends,
     File,
     HTTPException,
-    UploadFile
+    UploadFile,
 )
 from sqlalchemy.orm import Session
 
@@ -16,12 +16,15 @@ from ..models.document import Document
 from ..models.workspace import Workspace
 from ..schemas.document import DocumentResponse
 from ..services.document_extractor import extract_text
+from ..services.document_segment_service import (
+    create_document_version_and_segments,
+)
 
 
 # Create Documents API router
 router = APIRouter(
     prefix="/documents",
-    tags=["Documents"]
+    tags=["Documents"],
 )
 
 
@@ -41,30 +44,32 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 # Document Upload API
 @router.post(
     "/upload/{workspace_id}",
-    response_model=DocumentResponse
+    response_model=DocumentResponse,
 )
 async def upload_document(
     workspace_id: int,
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
 
     # Step 1: Check whether workspace exists
-    workspace = db.query(Workspace).filter(
-        Workspace.id == workspace_id
-    ).first()
+    workspace = (
+        db.query(Workspace)
+        .filter(Workspace.id == workspace_id)
+        .first()
+    )
 
     if not workspace:
         raise HTTPException(
             status_code=404,
-            detail="Workspace not found."
+            detail="Workspace not found.",
         )
 
     # Step 2: Validate filename
     if not file.filename:
         raise HTTPException(
             status_code=400,
-            detail="Filename is missing."
+            detail="Filename is missing.",
         )
 
     original_filename = (
@@ -77,12 +82,11 @@ async def upload_document(
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail="Only PDF, DOCX, and TXT files are allowed."
+            detail="Only PDF, DOCX, and TXT files are allowed.",
         )
 
     # Step 4: Generate unique filename
     stored_filename = f"{uuid4().hex}{extension}"
-
     destination = DOCUMENT_STORAGE_DIR / stored_filename
 
     file_size = 0
@@ -93,7 +97,6 @@ async def upload_document(
         with destination.open("wb") as buffer:
 
             while True:
-
                 chunk = await file.read(1024 * 1024)
 
                 if not chunk:
@@ -105,7 +108,7 @@ async def upload_document(
                 if file_size > MAX_FILE_SIZE:
                     raise HTTPException(
                         status_code=413,
-                        detail="File size must not exceed 10 MB."
+                        detail="File size must not exceed 10 MB.",
                     )
 
                 buffer.write(chunk)
@@ -113,10 +116,10 @@ async def upload_document(
         # Step 7: Extract document text
         extracted_text = extract_text(
             str(destination),
-            extension
+            extension,
         )
 
-        # Step 8: Save document metadata and extracted text
+        # Step 8: Create document database record
         document = Document(
             workspace_id=workspace_id,
             uploaded_by_id=1,  # Temporary until authentication
@@ -125,33 +128,51 @@ async def upload_document(
             file_type=extension.lstrip("."),
             file_size=file_size,
             status="processed",
-            extracted_text=extracted_text
+            extracted_text=extracted_text,
         )
 
         db.add(document)
-        db.commit()
+
+        # Generate document ID without committing yet
+        db.flush()
+
+        # Step 9: Automatically create document version
+        # and save extracted text chunks into SQLite
+        version, segments = create_document_version_and_segments(
+            db=db,
+            document=document,
+        )
+
+        # The segment service commits the transaction.
         db.refresh(document)
+
+        print(
+            f"Document uploaded successfully: {document.id}"
+        )
+        print(
+            f"Document version created: {version.version_number}"
+        )
+        print(
+            f"Document segments created: {len(segments)}"
+        )
 
         return document
 
     except HTTPException:
-
         db.rollback()
         destination.unlink(missing_ok=True)
         raise
 
     except ValueError as error:
-
         db.rollback()
         destination.unlink(missing_ok=True)
 
         raise HTTPException(
             status_code=422,
-            detail=str(error)
+            detail=str(error),
         )
 
     except Exception as error:
-
         db.rollback()
         destination.unlink(missing_ok=True)
 
@@ -159,9 +180,8 @@ async def upload_document(
 
         raise HTTPException(
             status_code=500,
-            detail="Document upload failed."
+            detail="Document upload failed.",
         )
 
     finally:
-
         await file.close()
