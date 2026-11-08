@@ -1,35 +1,63 @@
 
-import { NavLink } from "react-router-dom";
 import {
     LayoutDashboard,
     FileText,
+    Search,
     MessageSquare,
     FolderKanban,
-    ChartBar,
+    ClipboardCheck,
     Settings,
-    ShieldCheck
 } from "lucide-react";
+
+import { NavLink } from "react-router-dom";
 
 function Sidebar() {
     const menuItems = [
-        { name: "Dashboard", path: "/", icon: LayoutDashboard },
-        { name: "Documents", path: "/documents", icon: FileText },
-        { name: "AI Chat", path: "/chat", icon: MessageSquare },
-        { name: "Workspaces", path: "/workspaces", icon: FolderKanban },
-        { name: "Evaluations", path: "/evaluations", icon: ChartBar },
-        { name: "Settings", path: "/settings", icon: Settings }
+        {
+            name: "Dashboard",
+            path: "/",
+            icon: LayoutDashboard,
+        },
+        {
+            name: "Documents",
+            path: "/documents",
+            icon: FileText,
+        },
+        {
+            name: "Document Search",
+            path: "/document-search",
+            icon: Search,
+        },
+        {
+            name: "Chat",
+            path: "/chat",
+            icon: MessageSquare,
+        },
+        {
+            name: "Workspaces",
+            path: "/workspaces",
+            icon: FolderKanban,
+        },
+        {
+            name: "Evaluations",
+            path: "/evaluations",
+            icon: ClipboardCheck,
+        },
+        {
+            name: "Settings",
+            path: "/settings",
+            icon: Settings,
+        },
     ];
 
     return (
         <aside className="sidebar">
-            <div className="brand">
-                <ShieldCheck size={27} />
-                <span>Evidence Desk</span>
+            <div className="sidebar-brand">
+                <h2>Evidence Desk</h2>
+                <p>Policy Intelligence</p>
             </div>
 
-            <p className="menu-heading">WORKSPACE</p>
-
-            <nav>
+            <nav className="sidebar-nav">
                 {menuItems.map((item) => {
                     const Icon = item.icon;
 
@@ -39,10 +67,10 @@ function Sidebar() {
                             to={item.path}
                             end={item.path === "/"}
                             className={({ isActive }) =>
-                                isActive ? "nav-item active" : "nav-item"
+                                `nav-link ${isActive ? "active" : ""}`
                             }
                         >
-                            <Icon size={19} />
+                            <Icon size={20} />
                             <span>{item.name}</span>
                         </NavLink>
                     );
@@ -50,8 +78,8 @@ function Sidebar() {
             </nav>
 
             <div className="sidebar-footer">
-                Evidence-First Policy Desk
-                <p>Version 1.0.0</p>
+                <p>Evidence-First Policy Desk</p>
+                <span>Version 1.0</span>
             </div>
         </aside>
     );

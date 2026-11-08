@@ -1,21 +1,16 @@
 
-import {
-    BrowserRouter,
-    Routes,
-    Route
-} from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import MainLayout from "./components/layout/MainLayout";
 
 import Dashboard from "./pages/Dashboard";
 import Documents from "./pages/Documents";
+import DocumentSearch from "./pages/DocumentSearch";
 import Chat from "./pages/Chat";
 import Workspaces from "./pages/Workspaces";
 import WorkspaceDetails from "./pages/WorkspaceDetails";
 import Evaluations from "./pages/Evaluations";
 import Settings from "./pages/Settings";
-
-import "./index.css";
 
 function App() {
     return (
@@ -24,8 +19,13 @@ function App() {
                 <Route element={<MainLayout />}>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/documents" element={<Documents />} />
-                    <Route path="/chat" element={<Chat />} />
 
+                    <Route
+                        path="/document-search"
+                        element={<DocumentSearch />}
+                    />
+
+                    <Route path="/chat" element={<Chat />} />
                     <Route path="/workspaces" element={<Workspaces />} />
 
                     <Route

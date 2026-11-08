@@ -14,11 +14,18 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models.document import Document
 from ..models.workspace import Workspace
+
 from ..schemas.document import DocumentResponse
+from ..schemas.document_search import (
+    DocumentSearchResponse,
+    DocumentSearchResult,
+)
+
 from ..services.document_extractor import extract_text
 from ..services.document_segment_service import (
     create_document_version_and_segments,
 )
+from ..services.document_search import search_document_segments
 
 
 # Create Documents API router
@@ -41,7 +48,10 @@ ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
-# Document Upload API
+# --------------------------------------------------
+# DOCUMENT UPLOAD API
+# --------------------------------------------------
+
 @router.post(
     "/upload/{workspace_id}",
     response_model=DocumentResponse,
@@ -185,3 +195,76 @@ async def upload_document(
 
     finally:
         await file.close()
+
+
+# --------------------------------------------------
+# DOCUMENT SEARCH API
+# --------------------------------------------------
+
+@router.get(
+    "/search/{workspace_id}",
+    response_model=DocumentSearchResponse,
+)
+def search_documents(
+    workspace_id: int,
+    query: str,
+    limit: int = 10,
+    db: Session = Depends(get_db),
+):
+
+    # Step 1: Validate search query
+    if not query or not query.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Search query cannot be empty.",
+        )
+
+    # Step 2: Validate result limit
+    if limit < 1 or limit > 50:
+        raise HTTPException(
+            status_code=400,
+            detail="Limit must be between 1 and 50.",
+        )
+
+    # Step 3: Check whether workspace exists
+    workspace = (
+        db.query(Workspace)
+        .filter(Workspace.id == workspace_id)
+        .first()
+    )
+
+    if not workspace:
+        raise HTTPException(
+            status_code=404,
+            detail="Workspace not found.",
+        )
+
+    try:
+
+        # Step 4: Search document segments using FTS5
+        results = search_document_segments(
+            db=db,
+            workspace_id=workspace_id,
+            query=query,
+            limit=limit,
+        )
+
+        # Step 5: Format search results
+        formatted_results = [
+            DocumentSearchResult(**result)
+            for result in results
+        ]
+
+        # Step 6: Return structured response
+        return DocumentSearchResponse(
+            query=query,
+            workspace_id=workspace_id,
+            total_results=len(formatted_results),
+            results=formatted_results,
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        )
