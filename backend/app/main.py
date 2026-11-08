@@ -6,6 +6,7 @@ from .database import Base, engine
 from . import models
 from .routes.workspace import router as workspace_router
 from .routes.document import router as document_router
+from .routes.evidence import router as evidence_router
 
 
 # Create database tables during development
@@ -27,6 +28,10 @@ app = FastAPI(
         {
             "name": "Documents",
             "description": "Upload and manage workspace documents."
+        },
+        {
+            "name": "Evidence",
+            "description": "Retrieve source evidence and validate citations."
         }
     ]
 )
@@ -48,6 +53,7 @@ app.add_middleware(
 # Register application routes
 app.include_router(workspace_router)
 app.include_router(document_router)
+app.include_router(evidence_router)
 
 
 # Home API
