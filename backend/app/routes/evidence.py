@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from groq import GroqError
@@ -6,13 +5,59 @@ from groq import GroqError
 from backend.app.database import get_db
 from backend.app.services.evidence_retriever import retrieve_evidence
 from backend.app.services.answer_generator import generate_grounded_answer
+from backend.app.services.conflict_detector import detect_conflicts
+
 from backend.app.schemas.evidence import EvidenceResponse, EvidenceItem
+from backend.app.schemas.conflict import ConflictResponse
 
 
 router = APIRouter(
     prefix="/evidence",
     tags=["Evidence"],
 )
+
+
+@router.get(
+    "/conflicts/{workspace_id}",
+    response_model=ConflictResponse,
+)
+def get_policy_conflicts(
+    workspace_id: int,
+    query: str = Query(..., min_length=1),
+    db: Session = Depends(get_db),
+):
+    """
+    Detect potential policy conflicts using evidence
+    from current document versions in a workspace.
+    """
+
+    try:
+        evidence_items = retrieve_evidence(
+            db=db,
+            workspace_id=workspace_id,
+            query=query,
+            limit=50,
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        )
+
+    conflict_result = detect_conflicts(evidence_items)
+
+    return ConflictResponse(
+        query=query,
+        workspace_id=workspace_id,
+        total_evidence_compared=conflict_result[
+            "total_evidence_compared"
+        ],
+        potential_conflict_count=conflict_result[
+            "potential_conflict_count"
+        ],
+        conflicts=conflict_result["conflicts"],
+    )
 
 
 @router.get("/{workspace_id}", response_model=EvidenceResponse)
