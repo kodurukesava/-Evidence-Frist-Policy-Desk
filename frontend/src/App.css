@@ -182,3 +182,140 @@
     border-right-color: var(--border);
   }
 }
+
+/* Authentication Pages */
+
+.auth-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: #f3f6fb;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 430px;
+    padding: 38px;
+    background: #ffffff;
+    border: 1px solid #e5eaf2;
+    border-radius: 18px;
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+}
+
+.auth-logo {
+    width: 58px;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    border-radius: 16px;
+    color: #ffffff;
+    background: #2563eb;
+}
+
+.auth-card h1 {
+    text-align: center;
+    font-size: 27px;
+    margin-bottom: 8px;
+    color: #172033;
+}
+
+.auth-card > p {
+    text-align: center;
+    color: #64748b;
+    margin-bottom: 28px;
+}
+
+.auth-card form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.auth-card label {
+    margin-top: 10px;
+    font-weight: 600;
+    font-size: 14px;
+    color: #334155;
+}
+
+.auth-input {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 13px;
+    height: 48px;
+    border: 1px solid #dbe2ea;
+    border-radius: 9px;
+    color: #64748b;
+}
+
+.auth-input:focus-within {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.auth-input input {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14px;
+    color: #172033;
+}
+
+.auth-button {
+    height: 48px;
+    margin-top: 18px;
+    border: none;
+    border-radius: 9px;
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.auth-button:hover {
+    background: #1d4ed8;
+}
+
+.auth-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 24px;
+    font-size: 14px;
+    color: #64748b;
+}
+
+.auth-footer a {
+    color: #2563eb;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.auth-error {
+    padding: 12px;
+    margin-bottom: 16px;
+    border-radius: 8px;
+    background: #fee2e2;
+    color: #b91c1c;
+    font-size: 14px;
+}
+
+.spin {
+    animation: auth-spin 1s linear infinite;
+}
+
+@keyframes auth-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
