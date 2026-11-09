@@ -13,7 +13,13 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models.document import Document
-from ..models.workspace import Workspace
+from ..models.user import User
+
+from ..dependencies import (
+    get_current_user,
+    get_accessible_workspace,
+    get_editable_workspace,
+)
 
 from ..schemas.document import DocumentResponse
 from ..schemas.document_search import (
@@ -60,20 +66,15 @@ async def upload_document(
     workspace_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
 
-    # Step 1: Check whether workspace exists
-    workspace = (
-        db.query(Workspace)
-        .filter(Workspace.id == workspace_id)
-        .first()
+    # Step 1: Verify that the user can upload to this workspace
+    workspace = get_editable_workspace(
+        workspace_id=workspace_id,
+        current_user=current_user,
+        db=db,
     )
-
-    if not workspace:
-        raise HTTPException(
-            status_code=404,
-            detail="Workspace not found.",
-        )
 
     # Step 2: Validate filename
     if not file.filename:
@@ -132,7 +133,7 @@ async def upload_document(
         # Step 8: Create document database record
         document = Document(
             workspace_id=workspace_id,
-            uploaded_by_id=1,  # Temporary until authentication
+            uploaded_by_id=current_user.id,
             original_filename=original_filename,
             stored_filename=stored_filename,
             file_type=extension.lstrip("."),
@@ -210,33 +211,28 @@ def search_documents(
     query: str,
     limit: int = 10,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
 
-    # Step 1: Validate search query
+    # Step 1: Verify that the user can access this workspace
+    workspace = get_accessible_workspace(
+        workspace_id=workspace_id,
+        current_user=current_user,
+        db=db,
+    )
+
+    # Step 2: Validate search query
     if not query or not query.strip():
         raise HTTPException(
             status_code=400,
             detail="Search query cannot be empty.",
         )
 
-    # Step 2: Validate result limit
+    # Step 3: Validate result limit
     if limit < 1 or limit > 50:
         raise HTTPException(
             status_code=400,
             detail="Limit must be between 1 and 50.",
-        )
-
-    # Step 3: Check whether workspace exists
-    workspace = (
-        db.query(Workspace)
-        .filter(Workspace.id == workspace_id)
-        .first()
-    )
-
-    if not workspace:
-        raise HTTPException(
-            status_code=404,
-            detail="Workspace not found.",
         )
 
     try:
