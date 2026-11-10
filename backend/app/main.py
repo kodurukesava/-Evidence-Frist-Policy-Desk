@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .routes.auth import router as auth_router
+from .routes.membership import router as membership_router
 
 from .database import Base, engine
 from . import models
@@ -56,6 +57,7 @@ app.include_router(workspace_router)
 app.include_router(document_router)
 app.include_router(evidence_router)
 app.include_router(auth_router)
+app.include_router(membership_router)
 
 # Home API
 @app.get("/")

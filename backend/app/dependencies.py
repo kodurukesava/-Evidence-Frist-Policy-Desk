@@ -157,3 +157,35 @@ def get_editable_workspace(
         )
 
     return workspace
+
+def get_manageable_workspace(
+    workspace_id: int,
+    current_user: User,
+    db: Session,
+):
+    workspace = get_accessible_workspace(
+        workspace_id=workspace_id,
+        current_user=current_user,
+        db=db,
+    )
+
+    if workspace.owner_id == current_user.id:
+        return workspace
+
+    membership = (
+        db.query(WorkspaceMembership)
+        .filter(
+            WorkspaceMembership.workspace_id == workspace_id,
+            WorkspaceMembership.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not membership or membership.role not in {"admin"}:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found.",
+        )
+
+    return workspace
+
