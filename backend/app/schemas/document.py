@@ -1,3 +1,4 @@
+
 from datetime import datetime
 from pydantic import BaseModel
 
@@ -24,4 +25,10 @@ class DocumentVersionUploadResponse(BaseModel):
     is_current: bool
     checksum: str
     segments_created: int
+    message: str
+
+
+class DocumentLifecycleResponse(BaseModel):
+    document_id: int
+    lifecycle_status: str
     message: str

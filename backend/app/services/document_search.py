@@ -14,8 +14,8 @@ def search_document_segments(
     """
     Search document segments using SQLite FTS5.
 
-    Searches only documents belonging to the specified workspace
-    and their current document versions.
+    Searches only active documents belonging to the specified
+    workspace and their current document versions.
     """
 
     # 1. Validate search query
@@ -38,7 +38,7 @@ def search_document_segments(
     # 4. Validate result limit
     limit = max(1, min(limit, 50))
 
-    # 5. Search current document versions in the workspace
+    # 5. Search active documents and current versions
     sql = text("""
         SELECT
             ds.id AS segment_id,
@@ -65,6 +65,7 @@ def search_document_segments(
         WHERE document_segments_fts MATCH :fts_query
           AND d.workspace_id = :workspace_id
           AND dv.is_current = 1
+          AND d.lifecycle_status = 'active'
 
         ORDER BY bm25(document_segments_fts) ASC
 

@@ -6,7 +6,7 @@ from sqlalchemy import (
     BigInteger,
     DateTime,
     ForeignKey,
-    Text
+    Text,
 )
 from sqlalchemy.sql import func
 
@@ -19,54 +19,73 @@ class Document(Base):
     id = Column(
         Integer,
         primary_key=True,
-        index=True
+        index=True,
     )
 
     workspace_id = Column(
         Integer,
         ForeignKey("workspaces.id"),
-        nullable=False
+        nullable=False,
     )
 
     uploaded_by_id = Column(
         Integer,
         ForeignKey("users.id"),
-        nullable=False
+        nullable=False,
     )
 
     original_filename = Column(
         String(255),
-        nullable=False
+        nullable=False,
     )
 
     stored_filename = Column(
         String(255),
-        nullable=False
+        nullable=False,
     )
 
     file_type = Column(
         String(20),
-        nullable=False
+        nullable=False,
     )
 
     file_size = Column(
         BigInteger,
-        nullable=False
+        nullable=False,
     )
 
+    # Document processing status
     status = Column(
         String(30),
         default="uploaded",
-        nullable=False
+        nullable=False,
+    )
+
+    # Document lifecycle status
+    lifecycle_status = Column(
+        String(20),
+        default="active",
+        nullable=False,
+        index=True,
+    )
+
+    archived_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    deleted_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     # Store extracted document text
     extracted_text = Column(
         Text,
-        nullable=True
+        nullable=True,
     )
 
     created_at = Column(
         DateTime(timezone=True),
-        server_default=func.now()
+        server_default=func.now(),
     )

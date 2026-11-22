@@ -1,6 +1,7 @@
 
 from pathlib import Path
 from uuid import uuid4
+from datetime import datetime, timezone
 
 from fastapi import (
     APIRouter,
@@ -14,18 +15,22 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models.document import Document
 from ..models.document_version import DocumentVersion
+from ..models.document_segment import DocumentSegment
 from ..models.user import User
 
 from ..dependencies import (
     get_current_user,
     get_accessible_workspace,
     get_editable_workspace,
+    get_manageable_workspace,
 )
 
 from ..schemas.document import (
     DocumentResponse,
     DocumentVersionUploadResponse,
+    DocumentLifecycleResponse,
 )
+
 from ..schemas.document_search import (
     DocumentSearchResponse,
     DocumentSearchResult,
@@ -39,22 +44,25 @@ from ..services.document_segment_service import (
 from ..services.document_search import search_document_segments
 
 
-# Create Documents API router
+# --------------------------------------------------
+# CREATE DOCUMENTS API ROUTER
+# --------------------------------------------------
+
 router = APIRouter(
     prefix="/documents",
     tags=["Documents"],
 )
 
 
-# Project root directory
+# --------------------------------------------------
+# DOCUMENT STORAGE CONFIGURATION
+# --------------------------------------------------
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
-# Document storage directory
 DOCUMENT_STORAGE_DIR = PROJECT_ROOT / "data" / "documents"
 DOCUMENT_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
-
-# Upload restrictions
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
@@ -73,7 +81,6 @@ async def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-
     # Step 1: Verify workspace upload permission
     get_editable_workspace(
         workspace_id=workspace_id,
@@ -108,10 +115,8 @@ async def upload_document(
     file_size = 0
 
     try:
-
         # Step 5: Save uploaded file in chunks
         with destination.open("wb") as buffer:
-
             while True:
                 chunk = await file.read(1024 * 1024)
 
@@ -207,7 +212,6 @@ async def upload_document_version(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-
     # Step 1: Find the existing document
     document = (
         db.query(Document)
@@ -228,7 +232,14 @@ async def upload_document_version(
         db=db,
     )
 
-    # Step 3: Validate filename
+    # Step 3: Only active documents can receive new versions
+    if document.lifecycle_status != "active":
+        raise HTTPException(
+            status_code=409,
+            detail="New versions can only be uploaded to active documents.",
+        )
+
+    # Step 4: Validate filename
     if not file.filename:
         raise HTTPException(
             status_code=400,
@@ -241,24 +252,22 @@ async def upload_document_version(
 
     extension = Path(original_filename).suffix.lower()
 
-    # Step 4: Validate file extension
+    # Step 5: Validate file extension
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
             detail="Only PDF, DOCX, and TXT files are allowed.",
         )
 
-    # Step 5: Generate a unique storage filename
+    # Step 6: Generate a unique storage filename
     stored_filename = f"{uuid4().hex}{extension}"
     destination = DOCUMENT_STORAGE_DIR / stored_filename
 
     file_size = 0
 
     try:
-
-        # Step 6: Save uploaded file in chunks
+        # Step 7: Save uploaded file in chunks
         with destination.open("wb") as buffer:
-
             while True:
                 chunk = await file.read(1024 * 1024)
 
@@ -275,7 +284,7 @@ async def upload_document_version(
 
                 buffer.write(chunk)
 
-        # Step 7: Extract text from the new file
+        # Step 8: Extract text from the new file
         extracted_text = extract_text(
             str(destination),
             extension,
@@ -286,10 +295,10 @@ async def upload_document_version(
                 "Document has no extracted text. Cannot generate segments."
             )
 
-        # Step 8: Calculate new file checksum
+        # Step 9: Calculate new file checksum
         checksum = calculate_file_checksum(destination)
 
-        # Step 9: Find the latest existing version
+        # Step 10: Find the latest existing version
         latest_version = (
             db.query(DocumentVersion)
             .filter(
@@ -301,20 +310,9 @@ async def upload_document_version(
             .first()
         )
 
-        # Step 10: Handle duplicate file uploads
+        # Step 11: Handle duplicate file uploads
         if latest_version and latest_version.checksum == checksum:
-
             destination.unlink(missing_ok=True)
-
-            existing_segments = (
-                db.query(DocumentVersion)
-                .filter(
-                    DocumentVersion.id == latest_version.id
-                )
-                .first()
-            )
-
-            from ..models.document_segment import DocumentSegment
 
             segment_count = (
                 db.query(DocumentSegment)
@@ -332,11 +330,13 @@ async def upload_document_version(
                 is_current=latest_version.is_current,
                 checksum=latest_version.checksum,
                 segments_created=segment_count,
-                message="This file already exists as the latest document version.",
+                message=(
+                    "This file already exists as the latest document version."
+                ),
             )
 
-        # Step 11: Update document metadata for the new version
-        # Previous version files and records are preserved.
+        # Step 12: Update document metadata
+        # Previous version records are preserved.
         document.original_filename = original_filename
         document.stored_filename = stored_filename
         document.file_type = extension.lstrip(".")
@@ -346,13 +346,15 @@ async def upload_document_version(
 
         db.flush()
 
-        # Step 12: Create new version and its segments
+        # Step 13: Create new version and its segments
         version, segments = create_document_version_and_segments(
             db=db,
             document=document,
         )
 
-        print(f"New document version created: {version.version_number}")
+        print(
+            f"New document version created: {version.version_number}"
+        )
         print(f"Document ID: {document.id}")
         print(f"Segments created: {len(segments)}")
 
@@ -410,7 +412,6 @@ def search_documents(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-
     # Step 1: Verify workspace access
     get_accessible_workspace(
         workspace_id=workspace_id,
@@ -433,7 +434,6 @@ def search_documents(
         )
 
     try:
-
         # Step 4: Search document segments using FTS5
         results = search_document_segments(
             db=db,
@@ -461,3 +461,163 @@ def search_documents(
             status_code=400,
             detail=str(error),
         )
+
+
+# --------------------------------------------------
+# DOCUMENT LIFECYCLE MANAGEMENT
+# --------------------------------------------------
+
+def get_document_for_lifecycle(
+    document_id: int,
+    current_user: User,
+    db: Session,
+):
+    """
+    Retrieve a document and verify owner/admin permission.
+    """
+
+    document = (
+        db.query(Document)
+        .filter(Document.id == document_id)
+        .first()
+    )
+
+    if not document:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found.",
+        )
+
+    get_manageable_workspace(
+        workspace_id=document.workspace_id,
+        current_user=current_user,
+        db=db,
+    )
+
+    return document
+
+
+# --------------------------------------------------
+# ARCHIVE DOCUMENT
+# --------------------------------------------------
+
+@router.patch(
+    "/{document_id}/archive",
+    response_model=DocumentLifecycleResponse,
+)
+def archive_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    document = get_document_for_lifecycle(
+        document_id=document_id,
+        current_user=current_user,
+        db=db,
+    )
+
+    if document.lifecycle_status == "deleted":
+        raise HTTPException(
+            status_code=409,
+            detail="Deleted documents cannot be archived.",
+        )
+
+    if document.lifecycle_status == "archived":
+        raise HTTPException(
+            status_code=409,
+            detail="Document is already archived.",
+        )
+
+    document.lifecycle_status = "archived"
+    document.archived_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(document)
+
+    return DocumentLifecycleResponse(
+        document_id=document.id,
+        lifecycle_status=document.lifecycle_status,
+        message="Document archived successfully.",
+    )
+
+
+# --------------------------------------------------
+# RESTORE ARCHIVED DOCUMENT
+# --------------------------------------------------
+
+@router.patch(
+    "/{document_id}/restore",
+    response_model=DocumentLifecycleResponse,
+)
+def restore_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    document = get_document_for_lifecycle(
+        document_id=document_id,
+        current_user=current_user,
+        db=db,
+    )
+
+    if document.lifecycle_status == "deleted":
+        raise HTTPException(
+            status_code=409,
+            detail="Deleted documents cannot be restored.",
+        )
+
+    if document.lifecycle_status == "active":
+        raise HTTPException(
+            status_code=409,
+            detail="Document is already active.",
+        )
+
+    document.lifecycle_status = "active"
+    document.archived_at = None
+
+    db.commit()
+    db.refresh(document)
+
+    return DocumentLifecycleResponse(
+        document_id=document.id,
+        lifecycle_status=document.lifecycle_status,
+        message="Document restored successfully.",
+    )
+
+
+# --------------------------------------------------
+# SOFT DELETE DOCUMENT
+# --------------------------------------------------
+
+@router.delete(
+    "/{document_id}",
+    response_model=DocumentLifecycleResponse,
+)
+def soft_delete_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    document = get_document_for_lifecycle(
+        document_id=document_id,
+        current_user=current_user,
+        db=db,
+    )
+
+    if document.lifecycle_status == "deleted":
+        raise HTTPException(
+            status_code=409,
+            detail="Document is already deleted.",
+        )
+
+    document.lifecycle_status = "deleted"
+    document.deleted_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(document)
+
+    return DocumentLifecycleResponse(
+        document_id=document.id,
+        lifecycle_status=document.lifecycle_status,
+        message="Document soft-deleted successfully.",
+    )
