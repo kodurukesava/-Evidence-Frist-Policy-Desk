@@ -15,3 +15,13 @@ class DocumentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class DocumentVersionUploadResponse(BaseModel):
+    document_id: int
+    version_id: int
+    version_number: int
+    is_current: bool
+    checksum: str
+    segments_created: int
+    message: str
