@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
 import hashlib
+import logging
 
 from sqlalchemy.orm import Session
 
@@ -9,7 +10,10 @@ from ..models.document import Document
 from ..models.document_version import DocumentVersion
 from ..models.document_segment import DocumentSegment
 from .document_chunker import split_into_chunks
+from .embedding_service import save_segment_embeddings
 
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DOCUMENT_STORAGE_DIR = PROJECT_ROOT / "data" / "documents"
@@ -27,12 +31,45 @@ def calculate_file_checksum(file_path: Path) -> str:
     return sha256.hexdigest()
 
 
+def _generate_and_save_embeddings(
+    db: Session,
+    segments: list[DocumentSegment],
+) -> None:
+    """
+    Generate and save embeddings in a separate transaction.
+
+    Embedding failures must not undo an already-saved document version
+    or its segments. Failures are logged so they can be investigated
+    and retried later.
+    """
+
+    try:
+        save_segment_embeddings(db, segments)
+        db.commit()
+
+        logger.info(
+            "Successfully processed embeddings for %s segments.",
+            len(segments),
+        )
+
+    except Exception:
+        db.rollback()
+
+        logger.exception(
+            "Embedding generation failed for saved document segments. "
+            "The document and its segments remain available."
+        )
+
+
 def create_document_version_and_segments(
     db: Session,
     document: Document,
 ):
     """
-    Create a document version and save its extracted text as segments.
+    Create a document version, save its segments, and generate embeddings.
+
+    Document versions and segments are committed before embedding
+    generation so embedding failures cannot destroy uploaded documents.
     """
 
     try:
@@ -75,6 +112,9 @@ def create_document_version_and_segments(
             )
 
             if existing_segments:
+                # Retry missing embeddings for an existing version.
+                _generate_and_save_embeddings(db, existing_segments)
+
                 return version, existing_segments
 
         else:
@@ -123,7 +163,7 @@ def create_document_version_and_segments(
             db.add(segment)
             segments.append(segment)
 
-        # 10. Commit database transaction
+        # 10. Commit document version and segments first
         db.commit()
 
         # Refresh database objects
@@ -131,6 +171,9 @@ def create_document_version_and_segments(
 
         for segment in segments:
             db.refresh(segment)
+
+        # 11. Generate embeddings in a separate transaction
+        _generate_and_save_embeddings(db, segments)
 
         return version, segments
 
