@@ -426,6 +426,12 @@ def search_documents(
             detail="Search query cannot be empty.",
         )
 
+    if len(query) > 500:
+        raise HTTPException(
+            status_code=400,
+            detail="Search query cannot exceed 500 characters.",
+        )
+
     # Step 3: Validate result limit
     if limit < 1 or limit > 50:
         raise HTTPException(

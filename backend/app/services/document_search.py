@@ -14,11 +14,16 @@ def search_document_segments(
     """
     Search document segments using SQLite FTS5.
 
-    Searches only active documents belonging to the specified
-    workspace and their current document versions.
+    Ranking priority:
+    1. Exact phrase matches.
+    2. BM25 relevance score.
+    3. Stable segment ID ordering.
+
+    Only active documents and their current versions
+    from the requested workspace are searched.
     """
 
-    # 1. Validate search query
+    # 1. Validate query
     if not query or not query.strip():
         raise ValueError("Search query cannot be empty.")
 
@@ -28,18 +33,34 @@ def search_document_segments(
     if not words:
         raise ValueError("Search query contains no searchable words.")
 
-    # 3. Build a safe FTS5 query.
-    # All terms must match.
-    fts_query = " AND ".join(
-        f'"{word.replace(chr(34), chr(34) * 2)}"'
-        for word in words
-    )
+    # 3. Remove duplicate terms while preserving order
+    unique_words = list(dict.fromkeys(
+        word.casefold() for word in words
+    ))
 
-    # 4. Validate result limit
+    # 4. Build safe FTS5 queries
+    quoted_words = [
+        f'"{word.replace(chr(34), chr(34) * 2)}"'
+        for word in unique_words
+    ]
+
+    # All query terms must match.
+    fts_query = " AND ".join(quoted_words)
+
+    # Exact phrase query for ranking priority.
+    phrase_query = '"' + " ".join(unique_words) + '"'
+
+    # 5. Validate result limit
     limit = max(1, min(limit, 50))
 
-    # 5. Search active documents and current versions
+    # 6. Retrieve and rank evidence
     sql = text("""
+        WITH phrase_matches AS (
+            SELECT rowid
+            FROM document_segments_fts
+            WHERE document_segments_fts MATCH :phrase_query
+        )
+
         SELECT
             ds.id AS segment_id,
             ds.document_version_id AS version_id,
@@ -67,16 +88,26 @@ def search_document_segments(
           AND dv.is_current = 1
           AND d.lifecycle_status = 'active'
 
-        ORDER BY bm25(document_segments_fts) ASC
+        ORDER BY
+            CASE
+                WHEN ds.id IN (
+                    SELECT rowid FROM phrase_matches
+                )
+                THEN 0
+                ELSE 1
+            END ASC,
+            relevance_score ASC,
+            ds.id ASC
 
         LIMIT :limit
     """)
 
-    # 6. Execute search
+    # 7. Execute search
     results = db.execute(
         sql,
         {
             "fts_query": fts_query,
+            "phrase_query": phrase_query,
             "workspace_id": workspace_id,
             "limit": limit,
         },

@@ -353,3 +353,72 @@ def test_non_member_cannot_upload_document(
     )
 
     assert response.status_code == 404
+
+def test_exact_phrase_match_ranks_before_separate_term_matches(
+    test_db,
+    document_search_data,
+):
+    data = document_search_data
+
+    exact_phrase_segment = DocumentSegment(
+        document_version_id=data["current_version"].id,
+        segment_index=1,
+        content=(
+            "The employee leave policy explains "
+            "annual leave eligibility and procedures."
+        ),
+    )
+
+    separate_terms_segment = DocumentSegment(
+        document_version_id=data["current_version"].id,
+        segment_index=2,
+        content=(
+            "The employee handbook explains leave eligibility "
+            "and the policy requirements."
+        ),
+    )
+
+    test_db.add_all([
+        exact_phrase_segment,
+        separate_terms_segment,
+    ])
+    test_db.commit()
+
+    # Rebuild FTS because this test inserts segments after fixture setup.
+    connection = test_db.connection()
+
+    connection.exec_driver_sql("""
+        INSERT INTO document_segments_fts(document_segments_fts)
+        VALUES ('rebuild')
+    """)
+
+    results = search_document_segments(
+        db=test_db,
+        workspace_id=data["workspace_one"].id,
+        query="employee leave policy",
+    )
+
+    assert len(results) == 2
+
+    # Exact phrase must appear before the separate-term match.
+    assert results[0]["segment_id"] == exact_phrase_segment.id
+    assert results[1]["segment_id"] == separate_terms_segment.id
+def test_search_rejects_query_longer_than_500_characters(
+    client,
+    document_search_data,
+):
+    owner = document_search_data["owner"]
+    workspace_id = document_search_data["workspace_one"].id
+
+    long_query = "a" * 501
+
+    response = client.get(
+        f"/documents/search/{workspace_id}",
+        params={"query": long_query},
+        headers=auth_headers(owner.id),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "Search query cannot exceed 500 characters."
+    )
